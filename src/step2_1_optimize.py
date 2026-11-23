@@ -21,6 +21,7 @@ limit holds. The model is exactly the one in the proposal:
 Inputs:  output/network_lines.csv, output/network_buses.csv   (step1_2_export.py)
          output/upgrades_g{g}.csv, output/battery_sites_g{g}.csv (step1_3_candidates.py)
          data/feeder_shape.csv
+         data/prices.csv                                          (step0_3_prices.py)
 Outputs: output/step2_g{g}_{plan}_summary.csv     costs and totals
          output/step2_g{g}_{plan}_batteries.csv   batteries built (bus, MWh, MW)
          output/step2_g{g}_{plan}_upgrades.csv    lines upgraded
@@ -29,6 +30,8 @@ Run from the repo root:
     python src/step2_1_optimize.py 1.3            (co-optimize batteries and wires at g = 1.3)
     python src/step2_1_optimize.py 1.3 wires      (upgrades only, no batteries allowed)
     python src/step2_1_optimize.py 1.3 batteries  (batteries only, no upgrades allowed)
+    python src/step2_1_optimize.py 1.3 all_sites  (screen check: like "both", but a battery
+                                                   may go at every bus, not only those in B(g))
 Needs Gurobi (gurobipy) with a full license: the model is far bigger than the free
 size-limited license allows.
 """
@@ -88,7 +91,10 @@ FEET_PER_KM = 3280.84
 UPGRADE_FACTOR = 2.0  # an upgraded line gets UPGRADE_FACTOR x its old rating
 
 # --- electricity price at the substation ---
-PRICE = 40.0  # $/MWh, the same every hour for now
+# CAISO day-ahead LMP at DLAP_PGAE-APND, one value per hour of the year ($/MWh), made by
+# step0_3_prices.py. The load shape is from 2018 but these prices are from 2025 (2018 prices
+# aren't available), so the two are matched by day of the year and hour of the day.
+PRICE_FILE = "data/prices.csv"
 
 # --- network ---
 BASE_KV = 12.47  # line-to-line voltage
@@ -136,13 +142,20 @@ def read_inputs(g, plan):
         sites = sites.iloc[0:0]  # no battery sites
     if plan == "batteries":
         upgrades = upgrades.iloc[0:0]  # no upgrades
+    if plan == "all_sites":
+        # screen check: a battery may go at every bus except the substation (the one bus
+        # with no parent), to confirm that the B(g) screen does not leave out useful sites
+        sites = buses[buses["parent_bus"] != ""]
 
     # hourly kW multiplier for the representative days
     shape = np.loadtxt("data/feeder_shape.csv", delimiter=",")
     kw_multiplier = shape[:, 0]
     rep_days, weights = pick_representative_days()
 
-    return lines, buses, upgrades, sites, kw_multiplier, rep_days, weights
+    # hourly price at the substation, 8760 values ($/MWh)
+    prices = np.loadtxt(PRICE_FILE)
+
+    return lines, buses, upgrades, sites, kw_multiplier, prices, rep_days, weights
 
 
 # ----------------------------------------------------------------------------
@@ -150,7 +163,9 @@ def read_inputs(g, plan):
 # ----------------------------------------------------------------------------
 
 
-def build_model(g, lines, buses, upgrades, sites, kw_multiplier, rep_days, weights):
+def build_model(
+    g, lines, buses, upgrades, sites, kw_multiplier, prices, rep_days, weights
+):
     m = gp.Model("batteries_or_wires")
 
     # --- index sets ---
@@ -189,6 +204,12 @@ def build_model(g, lines, buses, upgrades, sites, kw_multiplier, rep_days, weigh
             return 0.0
         return (peak_Q[j] / peak_P[j]) * load_P(j, d, t)
 
+    # price at the substation, day d, hour t ($/MWh): the 2025 price for the same
+    # day of the year and hour as the (2018) load
+    def price(d, t):
+        hour_of_year = 24 * rep_days[d] + t
+        return prices[hour_of_year]
+
     # --- decision variables ---
     # planning
     E = m.addVars(B, lb=0, ub=E_MAX, name="E")  # battery energy (MWh)
@@ -216,7 +237,7 @@ def build_model(g, lines, buses, upgrades, sites, kw_multiplier, rep_days, weigh
     )
     lines_leaving_substation = lines_out[substation]
     energy_cost = gp.quicksum(
-        weights[d] * PRICE * P[l, d, t]
+        weights[d] * price(d, t) * P[l, d, t]
         for d in D
         for t in T
         for l in lines_leaving_substation
@@ -367,18 +388,18 @@ def main():
     # growth level and plan from the command line (defaults: g = 1.3, both)
     g = float(sys.argv[1]) if len(sys.argv) > 1 else 1.3
     plan = sys.argv[2] if len(sys.argv) > 2 else "both"
-    if plan not in ["both", "wires", "batteries"]:
-        sys.exit("plan must be both, wires or batteries")
+    if plan not in ["both", "wires", "batteries", "all_sites"]:
+        sys.exit("plan must be both, wires, batteries or all_sites")
 
-    lines, buses, upgrades, sites, kw_multiplier, rep_days, weights = read_inputs(
-        g, plan
+    lines, buses, upgrades, sites, kw_multiplier, prices, rep_days, weights = (
+        read_inputs(g, plan)
     )
     print(
         f"g = {g}, plan = {plan}: {len(upgrades)} candidate upgrades, {len(sites)} candidate battery sites"
     )
 
     m, variables, costs, upgrade_costs = build_model(
-        g, lines, buses, upgrades, sites, kw_multiplier, rep_days, weights
+        g, lines, buses, upgrades, sites, kw_multiplier, prices, rep_days, weights
     )
     m.Params.TimeLimit = TIME_LIMIT_S
     m.Params.MIPGap = MIP_GAP

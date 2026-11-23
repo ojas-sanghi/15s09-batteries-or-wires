@@ -5,11 +5,12 @@ For each load-growth level g we write down two lists:
 
   U    = lines that may be upgraded: every 12.47 kV line that went over its rating
          at least once in the screen (step1_1_screen.py).
-  B(g) = buses where a battery may be placed: every three-phase 12.47 kV bus that has
+  B(g) = buses where a battery may be placed: every 12.47 kV bus that has
          an overloaded line somewhere on its path back to the substation.
          (A battery only helps an overloaded line if the line carries the battery's power,
-         which happens when the battery sits downstream of it, i.e. further from the substation.
-         We keep only three-phase buses because batteries of this size connect on all three phases.)
+         which happens when the battery sits at the line's far end or downstream of it,
+         i.e. further from the substation. This is the proposal's B(g): every bus at or
+         below an overloaded section, single-phase or three-phase.)
 
 Inputs  (made by the earlier steps):
   output/step1_g{g}.csv         from step1_1_screen.py
@@ -79,12 +80,10 @@ def find_candidates(g, lines, buses, parent, line_into_bus):
     )
     upgrades = upgrades.sort_values("peak_loading_pct", ascending=False)
 
-    # --- B(g): three-phase buses below at least one overloaded line ---
+    # --- B(g): buses at or below at least one overloaded line ---
     rows = []
     for i in range(len(buses)):
         bus = buses["bus"][i]
-        if not buses["three_phase"][i]:
-            continue
 
         path = lines_on_path_to_substation(bus, parent, line_into_bus)
         relieved = []

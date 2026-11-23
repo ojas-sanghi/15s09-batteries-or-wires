@@ -3,7 +3,8 @@ Proposal Step 1: AC headroom screen.
 
 For each load-growth level g, we:
   1. scale every customer's load by g,
-  2. run an AC power flow in OpenDSS for every hour of a few representative days,
+  2. run an AC power flow in OpenDSS for every hour of a few representative days
+     (k-means days plus the single highest-load day of the year, see pick_representative_days),
   3. record how loaded each 12.47 kV line gets compared with its rating.
 
 Simplification beyond the proposal: every customer follows the same hourly load shape
@@ -25,7 +26,7 @@ from sklearn.cluster import KMeans
 # ----------------------------------------------------------------------------
 
 GROWTH_LEVELS = [1.0, 1.1, 1.2, 1.3, 1.4, 1.5]  # load-growth multipliers g to test
-NUMBER_OF_REP_DAYS = 5  # representative days picked by k-means
+NUMBER_OF_REP_DAYS = 5  # representative days picked by k-means (the peak day is added on top)
 FEEDER_FOLDER = "data/feeder"
 PRIMARY_VOLTAGE_KV = 7.2  # 12.47 kV line-to-line = 7.2 kV line-to-neutral
 
@@ -37,9 +38,13 @@ PRIMARY_VOLTAGE_KV = 7.2  # 12.47 kV line-to-line = 7.2 kV line-to-neutral
 
 def pick_representative_days():
     """
-    Group the 365 days of the year into clusters of days that look alike (k-means),
+    Take out the single highest-load day of the year (the day with the highest hourly kW
+    multiplier) and keep it as its own representative day with weight 1, because k-means
+    would average it away and the peak is what decides whether a line is overloaded.
+
+    Group the other 364 days into clusters of days that look alike (k-means),
     and pick the real day closest to the middle of each cluster.
-    The weight of a day = how many days its cluster contains.
+    The weight of a day = how many days its cluster contains. The weights add up to 365.
     """
     # feeder_shape.csv has 8760 rows (one per hour) and 2 columns:
     #   column 1 = kW multiplier, column 2 = kvar multiplier
@@ -49,13 +54,28 @@ def pick_representative_days():
     # Rearrange the 8760 hourly values into 365 rows (days) of 24 values (hours).
     days_by_hours = kw_multiplier.reshape(365, 24)
 
+    # The peak day is the day that contains the highest hour of the year.
+    peak_hour = np.argmax(kw_multiplier)
+    peak_day = int(peak_hour // 24)
+
+    # Every other day goes into k-means.
+    other_days = []
+    for day in range(365):
+        if day != peak_day:
+            other_days.append(day)
+
     kmeans = KMeans(n_clusters=NUMBER_OF_REP_DAYS, n_init=20, random_state=0)
-    kmeans.fit(days_by_hours)
+    kmeans.fit(days_by_hours[other_days])
 
     rep_days = []
     weights = []
     for cluster in range(NUMBER_OF_REP_DAYS):
-        days_in_cluster = np.where(kmeans.labels_ == cluster)[0]
+        # k-means numbers the days 0..363 in the order of other_days,
+        # so turn those positions back into days of the year
+        positions_in_cluster = np.where(kmeans.labels_ == cluster)[0]
+        days_in_cluster = []
+        for position in positions_in_cluster:
+            days_in_cluster.append(other_days[position])
         center = kmeans.cluster_centers_[cluster]
 
         # find the real day in this cluster that is closest to the cluster center
@@ -69,6 +89,10 @@ def pick_representative_days():
 
         rep_days.append(int(best_day))
         weights.append(len(days_in_cluster))
+
+    # add the peak day last, standing for only itself
+    rep_days.append(peak_day)
+    weights.append(1)
 
     return rep_days, weights
 
