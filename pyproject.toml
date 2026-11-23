@@ -1,11 +1,10 @@
 [project]
 name = "step1-oneshape"
 version = "0.1.0"
-description = "Add your description here"
+description = "Batteries or Wires? Step 1 screen and Step 2 siting model on one SMART-DS feeder"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "certifi>=2026.11.20",
     "gurobipy~=13.0",
     "matplotlib>=3.11.2",
     "numpy>=2.5.5",

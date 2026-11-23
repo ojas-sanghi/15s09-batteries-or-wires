@@ -1,2 +1,0 @@
-g,plan,total_cost_per_yr,battery_cost_per_yr,upgrade_cost_per_yr,energy_cost_per_yr,wear_cost_per_yr,battery_sites,battery_MWh,lines_upgraded,mip_gap,solve_seconds
-1.1,all_sites,4376066.822243213,0.0,33306.218213850065,4342760.604029363,0.0,0,0,6,4.1428575886739524e-05,187.31196093559265
