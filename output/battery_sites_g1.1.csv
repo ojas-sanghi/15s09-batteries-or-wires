@@ -1,0 +1,15 @@
+bus,overloaded_lines_upstream,lines_it_could_relieve
+p2udt12035,1,padswitch(r:p2udt12035-p2udt5107)p2u_60865
+p2udt3326,1,padswitch(r:p2udt12035-p2udt5107)p2u_60865
+p2udt2204,1,padswitch(r:p2udt12035-p2udt5107)p2u_60865
+p2udt2226,1,padswitch(r:p2udt12035-p2udt5107)p2u_60865
+p2udt2208,1,padswitch(r:p2udt12035-p2udt5107)p2u_60865
+p2udt1813,1,padswitch(r:p2udt12035-p2udt5107)p2u_60865
+p2udt8274,1,padswitch(r:p2udt12035-p2udt5107)p2u_60865
+p2udt2,1,padswitch(r:p2udt12035-p2udt5107)p2u_60865
+p2udt8275,1,padswitch(r:p2udt12035-p2udt5107)p2u_60865
+p2udt598,1,padswitch(r:p2udt12035-p2udt5107)p2u_60865
+p2udt3121,1,padswitch(r:p2udt12035-p2udt5107)p2u_60865
+p2udt52,1,padswitch(r:p2udt12035-p2udt5107)p2u_60865
+p2udt3141,1,padswitch(r:p2udt12035-p2udt5107)p2u_60865
+p2udt3552,1,padswitch(r:p2udt12035-p2udt5107)p2u_60865

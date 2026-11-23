@@ -1,0 +1,2 @@
+line,from_bus,to_bus,phases,length_km,linecode,r_ohm,x_ohm,rating_MVA,peak_loading_pct,hours_above_rating
+padswitch(r:p2udt12035-p2udt5107)p2u_60865,p2udt12035-p2udt5107x,p2udt12035,3,0.001,padswitch_3_22,0.001,0.001,2.484,100.30607046758904,1
