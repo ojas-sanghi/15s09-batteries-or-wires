@@ -1,12 +1,11 @@
 # Step 1 of the proposal, with one load shape for every customer
 
-Code drafted with Claude (AI): disclose in the AI acknowledgement.
-
 ```bash
-pip install -r requirements.txt
-python download.py   # the feeder's 6 network files from SMART-DS (about 3 MB, public, no login)
-python step1.py      # about 1.5 minutes
-python plot.py 1.3   # map of the feeder, overloaded lines in red -> map_g1.3.png
+uv init
+uv sync
+uv run python src/download.py
+uv run python src/step1.py
+uv run python src/plot.py
 ```
 
 - `feeder_shape.csv`: 8,760 hourly rows, two columns (kW and kvar multipliers). It is the feeder's total

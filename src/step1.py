@@ -259,7 +259,7 @@ def main():
         summary.append(result)
         print(result)
 
-    pd.DataFrame(summary).to_csv("data/step1_summary.csv", index=False)
+    pd.DataFrame(summary).to_csv("output/step1_summary.csv", index=False)
 
 
 if __name__ == "__main__":
